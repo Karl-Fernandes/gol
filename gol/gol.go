@@ -17,15 +17,10 @@ func Run(p Params, events chan<- Event, keyPresses <-chan rune) {
 
 	ioCommand := make(chan ioCommand)
 	ioIdle := make(chan bool)
-
 	filename := make(chan string)
-	filename <- strconv.Itoa(p.ImageWidth) + "x" + strconv.Itoa(p.ImageHeight) + ".pgm"
-
-	output := make(chan uint8)
-	output <- uint8(ioOutput)
-
-	input := make(chan uint8)
-	input <- uint8(ioInput)
+	filename <- strconv.Itoa(p.ImageWidth) + "x" + strconv.Itoa(p.ImageHeight)
+	output := make(chan uint8, p.ImageWidth*p.ImageHeight)
+	input := make(chan uint8, p.ImageWidth*p.ImageHeight)
 
 	ioChannels := ioChannels{
 		command:  ioCommand,
@@ -34,16 +29,15 @@ func Run(p Params, events chan<- Event, keyPresses <-chan rune) {
 		output:   output,
 		input:    input,
 	}
-
 	go startIo(p, ioChannels)
 
 	distributorChannels := distributorChannels{
 		events:     events,
 		ioCommand:  ioCommand,
 		ioIdle:     ioIdle,
-		ioFilename: nil,
-		ioOutput:   nil,
-		ioInput:    nil,
+		ioFilename: filename,
+		ioOutput:   output,
+		ioInput:    input,
 	}
 	distributor(p, distributorChannels)
 }
