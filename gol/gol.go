@@ -1,7 +1,5 @@
 package gol
 
-import "strconv"
-
 // Params provides the details of how to run the Game of Life and which image to load.
 type Params struct {
 	Turns       int
@@ -18,7 +16,6 @@ func Run(p Params, events chan<- Event, keyPresses <-chan rune) {
 	ioCommand := make(chan ioCommand)
 	ioIdle := make(chan bool)
 	filename := make(chan string)
-	filename <- strconv.Itoa(p.ImageWidth) + "x" + strconv.Itoa(p.ImageHeight)
 	output := make(chan uint8, p.ImageWidth*p.ImageHeight)
 	input := make(chan uint8, p.ImageWidth*p.ImageHeight)
 

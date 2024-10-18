@@ -17,10 +17,11 @@ type distributorChannels struct {
 // distributor divides the work between workers and interacts with other goroutines.
 func distributor(p Params, c distributorChannels) {
 
+	c.ioCommand <- ioInput
 	// TODO: Create a 2D slice to store the world.
 	c.ioFilename <- strconv.Itoa(p.ImageWidth) + "x" + strconv.Itoa(p.ImageHeight)
 
-	turn := 0
+	turn := p.Turns
 	c.events <- StateChange{turn, Executing}
 
 	// create original world
@@ -38,34 +39,41 @@ func distributor(p Params, c distributorChannels) {
 	for i := range newWorld {
 		newWorld[i] = make([]byte, p.ImageWidth)
 	}
+	for i := 0; i < turn; i++ {
+		for y := 0; y < p.ImageHeight; y++ {
+			for x := 0; x < p.ImageWidth; x++ {
 
-	for y := 0; y < p.ImageHeight; y++ {
-		for x := 0; x < p.ImageWidth; x++ {
-
-			sum := int(0)
-			sum = int(world[(y+p.ImageHeight-1)%p.ImageHeight][(x+p.ImageWidth-1)%p.ImageWidth]%byte(254) + world[(y+p.ImageHeight-1)%p.ImageHeight][(x+p.ImageWidth)%p.ImageWidth]%byte(254) +
-				world[(y+p.ImageHeight-1)%p.ImageHeight][(x+p.ImageWidth+1)%p.ImageWidth]%byte(254) + world[(y+p.ImageHeight)%p.ImageHeight][(x+p.ImageWidth-1)%p.ImageWidth]%byte(254) +
-				world[(y+p.ImageHeight)%p.ImageHeight][(x+p.ImageWidth+1)%p.ImageWidth]%byte(254) + world[(y+p.ImageHeight+1)%p.ImageHeight][(x+p.ImageWidth-1)%p.ImageWidth]%byte(254) +
-				world[(y+p.ImageHeight+1)%p.ImageHeight][(x+p.ImageWidth)%p.ImageWidth]%byte(254) + world[(y+p.ImageHeight+1)%p.ImageHeight][(x+p.ImageWidth+1)%p.ImageWidth]%byte(254))
-			if world[y][x] == 255 {
-				if sum == 2 || sum == 3 {
-					newWorld[y][x] = 255
+				sum := int(0)
+				sum = int(world[(y+p.ImageHeight-1)%p.ImageHeight][(x+p.ImageWidth-1)%p.ImageWidth]%byte(254) + world[(y+p.ImageHeight-1)%p.ImageHeight][(x+p.ImageWidth)%p.ImageWidth]%byte(254) +
+					world[(y+p.ImageHeight-1)%p.ImageHeight][(x+p.ImageWidth+1)%p.ImageWidth]%byte(254) + world[(y+p.ImageHeight)%p.ImageHeight][(x+p.ImageWidth-1)%p.ImageWidth]%byte(254) +
+					world[(y+p.ImageHeight)%p.ImageHeight][(x+p.ImageWidth+1)%p.ImageWidth]%byte(254) + world[(y+p.ImageHeight+1)%p.ImageHeight][(x+p.ImageWidth-1)%p.ImageWidth]%byte(254) +
+					world[(y+p.ImageHeight+1)%p.ImageHeight][(x+p.ImageWidth)%p.ImageWidth]%byte(254) + world[(y+p.ImageHeight+1)%p.ImageHeight][(x+p.ImageWidth+1)%p.ImageWidth]%byte(254))
+				if world[y][x] == 255 {
+					if sum == 2 || sum == 3 {
+						newWorld[y][x] = 255
+					} else {
+						newWorld[y][x] = 0
+					}
 				} else {
-					newWorld[y][x] = 0
-				}
-			} else {
-				if sum == 3 {
-					newWorld[y][x] = 255
-				} else {
-					newWorld[y][x] = 0
+					if sum == 3 {
+						newWorld[y][x] = 255
+					} else {
+						newWorld[y][x] = 0
+					}
 				}
 			}
 		}
+		world = newWorld
 	}
 
 	// TODO: Report the final state using FinalTurnCompleteEvent.
 
 	// Make sure that the Io has finished any output before exiting.
+	var out uint8
+	for i := 0; i < p.ImageHeight; i++ {
+		out = newWorld[i][]
+	}
+	c.ioOutput <- newWorld
 	c.ioCommand <- ioCheckIdle
 	<-c.ioIdle
 	c.events <- FinalTurnComplete{
